@@ -1,8 +1,9 @@
 {
-  description = "My Neovim Flake with Plugins and Config";
+  description = "Portable Neovim Flake via NixVim";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixvim.url = "github:nix-community/nixvim";
     
     myNvimConfig = {
       url = "github:ViniciussSantos/nvimconfig";
@@ -10,65 +11,49 @@
     };
   };
 
-  outputs = { self, nixpkgs, myNvimConfig }:
+  outputs = { self, nixpkgs, nixvim, myNvimConfig }:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
-
-      configDir = pkgs.runCommand "nvim-config-dir" { } ''
-        mkdir -p $out/nvim
-        cp -r ${myNvimConfig}/* $out/nvim
-      '';
-
-      customNeovim = pkgs.neovim.override {
-        configure = {
-          customRC = ''
-            set runtimepath^=${configDir}/nvim
-            luafile ${configDir}/nvim/init.lua
-          '';
-
-          packages.myPlugins = with pkgs.vimPlugins; {
-            start = [
-              # Syntax Highlighting
-              nvim-treesitter.withAllGrammars
-
-              # LSP & Completion
-              nvim-cmp
-              cmp-nvim-lsp
-              luasnip
-              cmp_luasnip
-              
-              nvim-lspconfig
-              # Formatting
-              conform-nvim
-              
-              # Fuzzy Finder
-              telescope-nvim
-              plenary-nvim
-            ];
-          };
+      
+      nvim = nixvim.legacyPackages.${system}.makeNixvim {
+        opts = {
+          number = true;
+          shiftwidth = 2;
         };
-      };
 
+        plugins = {
+          treesitter = {
+            enable = true;
+            nixGrammars = true;
+          };
+          lsp = {
+            enable = true;
+            servers = {
+              lua_ls.enable = true;
+              nixd.enable = true;
+            };
+          };
+          telescope.enable = true;
+          conform-nvim.enable = true;
+          luasnip.enable = true;
+        };
+
+        extraConfigLua = ''
+          vim.opt.rtp:prepend("${myNvimConfig}")
+          
+          dofile("${myNvimConfig}/init.lua")
+        '';
+
+        extraPackages = with pkgs; [
+          stylua
+          nixd
+          ruff
+          mypy
+        ];
+      };
     in
     {
-      apps.${system}.default = {
-        type = "app";
-        program = "${pkgs.writeShellScriptBin "nvim" ''
-          # We still set this so plugins like lazy.nvim know where 'stdpath("config")' is
-          export XDG_CONFIG_HOME="${configDir}"
-          
-          # Add external LSP binaries to PATH so Neovim can find them
-          export PATH="${pkgs.lib.makeBinPath [
-            pkgs.lua-language-server
-            pkgs.nixd
-            pkgs.stylua
-            # Add other LSP servers here (e.g., pyright, gopls, etc.)
-          ]}:$PATH"
-
-          # Run the custom wrapped neovim
-          exec ${customNeovim}/bin/nvim "$@"
-        ''}/bin/nvim";
-      };
+      packages.${system}.default = nvim;
     };
 }
