@@ -1,20 +1,18 @@
 {
   "nodes": {
-    "flake-utils": {
-      "inputs": {
-        "systems": "systems"
-      },
+    "myNvimConfig": {
+      "flake": false,
       "locked": {
-        "lastModified": 1731533236,
-        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
-        "owner": "numtide",
-        "repo": "flake-utils",
-        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
+        "lastModified": 1767632138,
+        "narHash": "sha256-9njnAvVu1zHIoBFuLjsDSVnm3XoR6Zl4atyZOLPUoB4=",
+        "owner": "ViniciussSantos",
+        "repo": "nvimconfig",
+        "rev": "4184e3b119d00c07d69da2d4380693f54f60f04e",
         "type": "github"
       },
       "original": {
-        "owner": "numtide",
-        "repo": "flake-utils",
+        "owner": "ViniciussSantos",
+        "repo": "nvimconfig",
         "type": "github"
       }
     },
@@ -36,23 +34,8 @@
     },
     "root": {
       "inputs": {
-        "flake-utils": "flake-utils",
+        "myNvimConfig": "myNvimConfig",
         "nixpkgs": "nixpkgs"
-      }
-    },
-    "systems": {
-      "locked": {
-        "lastModified": 1681028828,
-        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
-        "owner": "nix-systems",
-        "repo": "default",
-        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "nix-systems",
-        "repo": "default",
-        "type": "github"
       }
     }
   },

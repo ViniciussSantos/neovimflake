@@ -1,73 +1,74 @@
 {
-  description = "My Neovim Flake with Pre-compiled Treesitter & LSPs";
+  description = "My Neovim Flake with Plugins and Config";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    
+    myNvimConfig = {
+      url = "github:ViniciussSantos/nvimconfig";
+      flake = false;
+    };
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = nixpkgs.legacyPackages.${system};
+  outputs = { self, nixpkgs, myNvimConfig }:
+    let
+      system = "x86_64-linux";
+      pkgs = nixpkgs.legacyPackages.${system};
 
-        myNvimConfig = pkgs.fetchFromGitHub {
-          owner = "ViniciussSantos";
-          repo = "nvimconfig";
-          rev = "main"; 
-          hash = "sha256-9njnAvVu1zHIoBFuLjsDSVnm3XoR6Zl4atyZOLPUoB4=";
-        };
+      configDir = pkgs.runCommand "nvim-config-dir" { } ''
+        mkdir -p $out/nvim
+        cp -r ${myNvimConfig}/* $out/nvim
+      '';
 
-        configDir = pkgs.runCommand "nvim-config-dir" { } ''
-          mkdir -p $out/nvim
-          cp -r ${myNvimConfig}/* $out/nvim
-        '';
+      customNeovim = pkgs.neovim.override {
+        configure = {
+          customRC = ''
+            set runtimepath^=${configDir}/nvim
+            luafile ${configDir}/nvim/init.lua
+          '';
 
-        customNeovim = pkgs.neovim.override {
-          configure = {
-            packages.myPlugins = {
-              start = [ 
-                pkgs.vimPlugins.nvim-treesitter.withAllGrammars 
-              ];
-            };
+          packages.myPlugins = with pkgs.vimPlugins; {
+            start = [
+              # Syntax Highlighting
+              nvim-treesitter.withAllGrammars
+
+              # LSP & Completion
+              nvim-cmp
+              cmp-nvim-lsp
+              luasnip
+              cmp_luasnip
+              
+              nvim-lspconfig
+              # Formatting
+              conform-nvim
+              
+              # Fuzzy Finder
+              telescope-nvim
+              plenary-nvim
+            ];
           };
         };
+      };
 
-      in
-      {
-        packages.default = pkgs.writeShellApplication {
-          name = "nvim";
-          runtimeInputs = with pkgs; [ 
-            customNeovim 
-            git 
-            ripgrep 
-            fd
-            unzip
-            
-            lua-language-server
-            stylua
-
-            nodePackages.typescript-language-server
-            prettierd
-            vscode-langservers-extracted 
-
-            rust-analyzer
-            
-            mypy
-            ruff
-            pyright
-
-            shfmt
-            nodePackages.bash-language-server
-            
-            nil
-          ];
+    in
+    {
+      apps.${system}.default = {
+        type = "app";
+        program = "${pkgs.writeShellScriptBin "nvim" ''
+          # We still set this so plugins like lazy.nvim know where 'stdpath("config")' is
+          export XDG_CONFIG_HOME="${configDir}"
           
-          text = ''
-            export XDG_CONFIG_HOME="${configDir}"
-            exec nvim "$@"
-          '';
-        };
-      }
-    );
+          # Add external LSP binaries to PATH so Neovim can find them
+          export PATH="${pkgs.lib.makeBinPath [
+            pkgs.lua-language-server
+            pkgs.nixd
+            pkgs.stylua
+            # Add other LSP servers here (e.g., pyright, gopls, etc.)
+          ]}:$PATH"
+
+          # Run the custom wrapped neovim
+          exec ${customNeovim}/bin/nvim "$@"
+        ''}/bin/nvim";
+      };
+    };
 }
